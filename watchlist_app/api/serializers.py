@@ -1,10 +1,17 @@
+
+from django.forms import ValidationError
 from rest_framework import serializers
 
 from watchlist_app.models import Movie
 
+# validators
+def name_length(value):
+    if len(value) < 2:
+        raise serializers.ValidationError("Name is too short")
+    
 class MovieSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
-    name = serializers.CharField()
+    name = serializers.CharField(validators=[name_length])
     description = serializers.CharField()
     launched = serializers.BooleanField()
 
@@ -23,3 +30,16 @@ class MovieSerializer(serializers.Serializer):
         instance.save()
 
         return instance
+
+    # validation - field-level validation
+    # _name if the name of the field to be validated
+    # def validate_name(self, value):
+    #     if len(value) < 2:
+    #         raise serializers.ValidationError("Name is too short")
+    #     else:
+    #         return value
+
+    # validation - object-level validation
+    def validate(self, data):
+        if data['name'] == data["description"]:
+            raise ValidationError("name and description should be different")
