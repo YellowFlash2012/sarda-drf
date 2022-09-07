@@ -3,9 +3,17 @@
 from django.forms import ValidationError
 from rest_framework import serializers
 
-from watchlist_app.models import Movie, StreamingPlatform
+from watchlist_app.models import Movie, Review, StreamingPlatform
+
+class ReviewSerializer(serializers.ModelSerializer):
+    author = serializers.StringRelatedField(read_only=True)
+    class Meta:
+        model = Review
+        fields = "__all__"
 
 class MovieSerializer(serializers.ModelSerializer):
+    # "reviews" here refers to related_name in models
+    reviews = ReviewSerializer(many=True, read_only=True)
     class Meta:
         model = Movie
         fields = "__all__"
@@ -68,6 +76,7 @@ class MovieSerializer(serializers.ModelSerializer):
 
 class StreamingPlatformSerializer(serializers.ModelSerializer):
 
+    # "movie" refers to related_name in models
     movie = MovieSerializer(many=True, read_only=True)
     class Meta:
         model = StreamingPlatform
