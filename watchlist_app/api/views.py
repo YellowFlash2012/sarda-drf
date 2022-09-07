@@ -1,11 +1,11 @@
 
-from watchlist_app.api.serializers import MovieSerializer
+from watchlist_app.api.serializers import MovieSerializer, StreamingPlatformSerializer
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from rest_framework.views import APIView
 from rest_framework import status
 
-from watchlist_app.models import Movie
+from watchlist_app.models import Movie, StreamingPlatform
 
 # Create your views here.
 
@@ -47,6 +47,46 @@ class SingleMovie(APIView):
     def delete(self, request, pk):
         movie = Movie.objects.get(pk=pk)
         movie.delete()
+
+        return Response(status = status.HTTP_204_NO_CONTENT)
+
+class GetAllStreamingPlatforms(APIView):
+    def get(self, request):
+        platforms = StreamingPlatform.objects.all()
+        serializer = StreamingPlatformSerializer(platforms, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = StreamingPlatformSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        else:
+            return Response(serializer.errors)
+
+class SingleStreamingPlatform(APIView):
+    def get(self, request, pk):
+        try:
+            platform = StreamingPlatform.objects.get(pk=pk)
+        except StreamingPlatform.DoesNotExist:
+            return Response({"Error":"Such movie doesn't exist!"}, status = status.HTTP_404_NOT_FOUND)
+
+        serializer = StreamingPlatformSerializer(platform)
+
+        return Response(serializer.data)
+    
+    def put(self, request, pk):
+        platform = StreamingPlatform.objects.get(pk=pk)
+        serializer = StreamingPlatformSerializer(platform, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        else:
+            return Response(serializer.errors, status = status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        platform = StreamingPlatform.objects.get(pk=pk)
+        platform.delete()
 
         return Response(status = status.HTTP_204_NO_CONTENT)
 
