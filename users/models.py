@@ -14,14 +14,16 @@ from rest_framework.authtoken.models import Token
 class CustomUser(AbstractUser):
     username = None
     email = models.EmailField(_('email address'), unique=True)
+    name = models.CharField(max_length=200, blank=True, default="")
 
     USERNAME_FIELD = 'email'
+    EMAIL_FIELD = "email"
     REQUIRED_FIELDS = []
 
     objects = CustomUserManager()
 
     def __str__(self):
-        return self.email
+        return self.name
 
 # generate token after signup
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
