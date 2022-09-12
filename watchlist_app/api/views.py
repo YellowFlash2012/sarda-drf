@@ -1,5 +1,6 @@
 
 from django.forms import ValidationError
+from watchlist_app.api.pagination import MoviePagination
 from watchlist_app.api.permissions import AdminOrReadOnly, ReviewAuthorOrReadOnly
 from watchlist_app.api.serializers import MovieSerializer, ReviewSerializer, StreamingPlatformSerializer
 
@@ -11,12 +12,19 @@ from rest_framework import generics
 # from rest_framework import mixins
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 
+from rest_framework.throttling import UserRateThrottle, AnonRateThrottle
+
+from django_filters import rest_framework as filters
+
 from watchlist_app.models import Movie, Review, StreamingPlatform
 
 # Create your views here.
 
 # ***class based views
 class GetAllMovies(APIView):
+    permission_classes = [AdminOrReadOnly]
+    pagination_class = MoviePagination
+
     def get(self, request):
         movies = Movie.objects.all()
         serializer = MovieSerializer(movies, many=True)
@@ -31,6 +39,9 @@ class GetAllMovies(APIView):
             return Response(serializer.errors)
 
 class SingleMovie(APIView):
+
+    permission_classes = [AdminOrReadOnly]
+
     def get(self, request, pk):
         try:
             movie = Movie.objects.get(pk=pk)
@@ -57,6 +68,8 @@ class SingleMovie(APIView):
         return Response(status = status.HTTP_204_NO_CONTENT)
 
 class GetAllStreamingPlatforms(APIView):
+    permission_classes = [AdminOrReadOnly]
+
     def get(self, request):
         platforms = StreamingPlatform.objects.all()
         serializer = StreamingPlatformSerializer(platforms, many=True)
@@ -71,6 +84,8 @@ class GetAllStreamingPlatforms(APIView):
             return Response(serializer.errors)
 
 class SingleStreamingPlatform(APIView):
+    permission_classes = [AdminOrReadOnly]
+
     def get(self, request, pk):
         try:
             platform = StreamingPlatform.objects.get(pk=pk)
@@ -114,6 +129,7 @@ class SingleStreamingPlatform(APIView):
 #         return self.retrieve(request, *args, **kwargs)
 class AddNewReview(generics.CreateAPIView):
     serializer_class = ReviewSerializer
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         return Review.objects.all()
@@ -128,12 +144,24 @@ class AddNewReview(generics.CreateAPIView):
         if review_queryset.exists():
             raise ValidationError("You have already reviewed this movie!")
 
+        if movie.num_rating == 0:
+            movie.avg_rating = serializer.validated_data['rating']
+        else:
+            movie.avg_rating = (movie.avg_rating + serializer.validated_data['rating']) / 2
+
+        movie.num_rating = movie.num_rating + 1
+        movie.save()
+
         serializer.save(movie=movie, author=review_author)
 class GetAllReviews(generics.ListAPIView):
     # queryset = Review.objects.all()
     serializer_class = ReviewSerializer
+    throttle_classes = [UserRateThrottle, AnonRateThrottle]
 
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    filter_backends = [filters.DjangoFilterBackend]
+    filterset_fields = ['author__username', 'published']
+
+    # permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
         pk = self.kwargs['pk']
@@ -143,10 +171,20 @@ class GetOneReview(generics.RetrieveUpdateDestroyAPIView):
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
     permission_classes = [ReviewAuthorOrReadOnly]
+    throttle_classes = [UserRateThrottle, AnonRateThrottle]
 
     # def get_queryset(self):
     #     pk = self.kwargs['pk']
     #     return Review.objects.filter(movie=pk)
+
+class UserReviews(generics.ListAPIView):
+    serializer_class = ReviewSerializer
+
+    def get_queryset(self):
+        # username = self.kwargs['username']
+        username = self.request.query_params.get('username', None)
+
+        return Review.objects.filter(author__username = username)
 
 # ***functional views
 @api_view(['GET', 'POST'])

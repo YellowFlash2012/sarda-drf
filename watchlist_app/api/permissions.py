@@ -16,4 +16,4 @@ class ReviewAuthorOrReadOnly(permissions.BasePermission):
             # SAFE_METHODS is 'get'
             return True
         else:
-            return obj.review_author == request.user 
+            return obj.review_author == request.user or request.user.is_staff
